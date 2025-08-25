@@ -12,6 +12,9 @@ type Role struct {
 type User struct {
 	ID        uuid.UUID `json:"id"`
 	RoleID    uuid.UUID `json:"role_id"`
+	Username  string    `json:"username"`
+	Email     string    `json:"email"`
+	Password  string    `json:"password"`
 	HesapTuru string    `json:"hesap_turu"`
 	Cash      float64   `json:"cash"`
 }
