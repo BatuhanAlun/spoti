@@ -1,13 +1,15 @@
 -- +goose Up
--- Bu migration, t_roles ve t_users tablolarını oluşturur.
--- t_users tablosu, username, email ve password sütunlarını içerir.
-
+-- Bu migration, gerekli tabloları oluşturur ve varsayılan rolleri ekler.
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- t_roles tablosu, kullanıcı rollerini (örneğin, Admin, User) saklar.
 CREATE TABLE IF NOT EXISTS t_roles (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4()
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(50) NOT NULL UNIQUE
 );
+
+-- Varsayılan rolleri ekle.
+INSERT INTO t_roles (name) VALUES ('admin'), ('user');
 
 -- t_users tablosu, kullanıcı bilgilerini saklar.
 CREATE TABLE IF NOT EXISTS t_users (
@@ -21,6 +23,8 @@ CREATE TABLE IF NOT EXISTS t_users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+
 
 CREATE TABLE t_songs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

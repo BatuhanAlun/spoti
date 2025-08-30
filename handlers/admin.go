@@ -18,7 +18,8 @@ import (
 // GetAllUsers, veritabanındaki tüm kullanıcıları listeler.
 func GetAllUsers(c *fiber.Ctx) error {
 	var users []models.User
-	rows, err := DB.Query(context.Background(), `SELECT id, role_id, hesap_turu, cash FROM t_users`)
+	// Sorguya username ve email sütunları eklendi.
+	rows, err := DB.Query(context.Background(), `SELECT id, username, email, role_id, hesap_turu, cash FROM t_users`)
 	if err != nil {
 		log.Println("Tüm kullanıcıları sorgulama hatası:", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Kullanıcılar listelenemedi."})
@@ -27,7 +28,8 @@ func GetAllUsers(c *fiber.Ctx) error {
 
 	for rows.Next() {
 		var user models.User
-		if err := rows.Scan(&user.ID, &user.RoleID, &user.HesapTuru, &user.Cash); err != nil {
+		// Scan fonksiyonu, sorgudaki yeni sütunları içerecek şekilde güncellendi.
+		if err := rows.Scan(&user.ID, &user.Username, &user.Email, &user.RoleID, &user.HesapTuru, &user.Cash); err != nil {
 			log.Println("Satır tarama hatası:", err)
 			continue
 		}
@@ -37,7 +39,7 @@ func GetAllUsers(c *fiber.Ctx) error {
 	return c.JSON(users)
 }
 
-// GetUserByID, belirli bir kullanıcıyı ID'sine göre getirir.
+// GetUserByID, belirli bir kullanıcıyı ID'sine göre getirir (Admin yetkilendirmesi gereklidir).
 func GetUserByID(c *fiber.Ctx) error {
 	userID := c.Params("userID")
 	parsedUserID, err := uuid.Parse(userID)
@@ -46,8 +48,10 @@ func GetUserByID(c *fiber.Ctx) error {
 	}
 
 	var user models.User
-	query := `SELECT id, role_id, hesap_turu, cash FROM t_users WHERE id = $1`
-	err = DB.QueryRow(context.Background(), query, parsedUserID).Scan(&user.ID, &user.RoleID, &user.HesapTuru, &user.Cash)
+	// Sorguya username ve email sütunları eklendi.
+	query := `SELECT id, username, email, role_id, hesap_turu, cash FROM t_users WHERE id = $1`
+	// Scan fonksiyonu, sorgudaki yeni sütunları içerecek şekilde güncellendi.
+	err = DB.QueryRow(context.Background(), query, parsedUserID).Scan(&user.ID, &user.Username, &user.Email, &user.RoleID, &user.HesapTuru, &user.Cash)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Kullanıcı bulunamadı."})

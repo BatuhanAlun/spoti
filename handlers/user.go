@@ -3,7 +3,6 @@ package handlers
 import (
 	"context"
 	"log"
-
 	"spoti/models"
 
 	"github.com/gofiber/fiber/v2"
@@ -18,25 +17,21 @@ var Store *session.Store
 
 // GetUser, oturumdaki kullanıcının bilgilerini getirir.
 func GetUser(c *fiber.Ctx) error {
-	sess, err := Store.Get(c)
-	if err != nil {
-		log.Println("Session alınamadı:", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Session alınamadı."})
-	}
-
-	userIDStr := sess.Get("userID")
-	if userIDStr == nil {
+	userIDLocal := c.Locals("userID")
+	if userIDLocal == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Oturum açık değil."})
 	}
 
-	userID, err := uuid.Parse(userIDStr.(string))
-	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Geçersiz kullanıcı ID'si."})
+	userID, ok := userIDLocal.(uuid.UUID)
+	if !ok {
+		log.Printf("GetUser: userID yerel değişkeni UUID tipinde değil: %v\n", userIDLocal)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Sunucu hatası, userID geçersiz."})
 	}
 
 	var user models.User
-	query := `SELECT id, role_id, hesap_turu, cash FROM t_users WHERE id = $1`
-	err = DB.QueryRow(context.Background(), query, userID).Scan(&user.ID, &user.RoleID, &user.HesapTuru, &user.Cash)
+	// Sorguya username ve email sütunları eklendi
+	query := `SELECT id, username, email, role_id, hesap_turu, cash FROM t_users WHERE id = $1`
+	err := DB.QueryRow(context.Background(), query, userID).Scan(&user.ID, &user.Username, &user.Email, &user.RoleID, &user.HesapTuru, &user.Cash)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Kullanıcı bulunamadı."})
@@ -50,20 +45,15 @@ func GetUser(c *fiber.Ctx) error {
 
 // UpdateUser, oturumdaki kullanıcının bilgilerini günceller.
 func UpdateUser(c *fiber.Ctx) error {
-	sess, err := Store.Get(c)
-	if err != nil {
-		log.Println("Session alınamadı:", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Session alınamadı."})
-	}
-
-	userIDStr := sess.Get("userID")
-	if userIDStr == nil {
+	userIDLocal := c.Locals("userID")
+	if userIDLocal == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Oturum açık değil."})
 	}
 
-	userID, err := uuid.Parse(userIDStr.(string))
-	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Geçersiz kullanıcı ID'si."})
+	userID, ok := userIDLocal.(uuid.UUID)
+	if !ok {
+		log.Printf("UpdateUser: userID yerel değişkeni UUID tipinde değil: %v\n", userIDLocal)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Sunucu hatası, userID geçersiz."})
 	}
 
 	var updatedUser models.User
@@ -87,20 +77,15 @@ func UpdateUser(c *fiber.Ctx) error {
 
 // DeleteUser, oturumdaki kullanıcının hesabını siler.
 func DeleteUser(c *fiber.Ctx) error {
-	sess, err := Store.Get(c)
-	if err != nil {
-		log.Println("Session alınamadı:", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Session alınamadı."})
-	}
-
-	userIDStr := sess.Get("userID")
-	if userIDStr == nil {
+	userIDLocal := c.Locals("userID")
+	if userIDLocal == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Oturum açık değil."})
 	}
 
-	userID, err := uuid.Parse(userIDStr.(string))
-	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Geçersiz kullanıcı ID'si."})
+	userID, ok := userIDLocal.(uuid.UUID)
+	if !ok {
+		log.Printf("DeleteUser: userID yerel değişkeni UUID tipinde değil: %v\n", userIDLocal)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Sunucu hatası, userID geçersiz."})
 	}
 
 	query := `DELETE FROM t_users WHERE id = $1`
@@ -112,6 +97,12 @@ func DeleteUser(c *fiber.Ctx) error {
 
 	if commandTag.RowsAffected() == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Silinecek kullanıcı bulunamadı."})
+	}
+
+	sess, err := Store.Get(c)
+	if err != nil {
+		log.Println("Session alınamadı:", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Oturum sonlandırılamadı."})
 	}
 
 	sess.Destroy()

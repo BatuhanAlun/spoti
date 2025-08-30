@@ -46,6 +46,7 @@ func main() {
 	handlers.DB = db
 	handlers.Store = store
 	middleware.Store = store
+	middleware.DB = db
 
 	// Kimlik Doğrulama (Authentication) rotaları
 	app.Post("/user/register", handlers.RegisterUser)
@@ -71,7 +72,7 @@ func main() {
 	userAPI.Get("/playlist/:userID/:songID", handlers.GetUserPlaylistSongByUserID)
 
 	// Admin API'leri için rotalar
-	adminAPI := app.Group("/admin")
+	adminAPI := app.Group("/admin", middleware.AdminRequired)
 	adminAPI.Get("/user", handlers.GetAllUsers)
 	adminAPI.Get("/user/:userID", handlers.GetUserByID)
 	adminAPI.Put("/user/:userID", handlers.UpdateUserByID)
