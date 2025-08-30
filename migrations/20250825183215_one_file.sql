@@ -47,12 +47,22 @@ CREATE TABLE t_playlist_songs (
     PRIMARY KEY (playlist_id, song_id)
 );
 
+CREATE TABLE IF NOT EXISTS t_cupons (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code VARCHAR(255) NOT NULL UNIQUE,
+    is_used BOOLEAN DEFAULT FALSE,
+    user_id UUID REFERENCES t_users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    used_at TIMESTAMP WITH TIME ZONE
+);
+
 -- +goose Down
 -- Bu migration, ilgili tabloları doğru sırayla siler.
 -- Bağımlılıkları olan tablolar önce silinmelidir.
-
+DROP TABLE IF EXISTS t_cupons;
 DROP TABLE IF EXISTS t_playlist_songs;
 DROP TABLE IF EXISTS t_playlist;
 DROP TABLE IF EXISTS t_songs;
 DROP TABLE IF EXISTS t_users;
 DROP TABLE IF EXISTS t_roles;
+

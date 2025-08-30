@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
+	"github.com/gofiber/storage/redis/v3"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 
@@ -24,7 +25,11 @@ func init() {
 }
 
 func main() {
-	store = session.New()
+	// Redis için yeni bir Store oluştur
+	redisStore := redis.New()
+	store = session.New(session.Config{
+		Storage: redisStore,
+	})
 
 	// Veritabanı bağlantısı
 	var err error
@@ -54,13 +59,13 @@ func main() {
 	app.Post("/user/logout", handlers.LogoutUser)
 
 	// --- API Route'ları ---
-	// Bu rotalar artık AuthRequired middleware'ı ile korunuyor
+	// User API'leri için rotalar
 	userAPI := app.Group("/user", middleware.AuthRequired)
 	userAPI.Get("/", handlers.GetUser)
 	userAPI.Put("/", handlers.UpdateUser)
 	userAPI.Delete("/", handlers.DeleteUser)
 
-	// TASK 9: Şarkı ve Çalma Listesi (Playlist) Rotaları
+	// Şarkı ve Çalma Listesi (Playlist) Rotaları
 	userAPI.Get("/song", middleware.ValidatePageQuery, handlers.GetSongs)
 	userAPI.Get("/song/:songID", handlers.GetSongByID)
 	userAPI.Post("/playlist", handlers.CreatePlaylist)
@@ -68,8 +73,15 @@ func main() {
 	userAPI.Get("/playlist/:playlistID", handlers.GetPlaylistByID)
 	userAPI.Delete("/playlist/:playlistID", handlers.DeletePlaylist)
 	userAPI.Post("/playlist/:playlistID/:songID", handlers.AddSongToPlaylist)
-	userAPI.Get("/playlist/:userID", handlers.GetUserPlaylistsByUserID)
-	userAPI.Get("/playlist/:userID/:songID", handlers.GetUserPlaylistSongByUserID)
+
+	// Rota çakışmasını önlemek için rotalar güncellendi
+	userAPI.Get("/playlist/by-user/:userID", handlers.GetUserPlaylistsByUserID)
+	userAPI.Get("/playlist/by-user/:userID/:songID", handlers.GetUserPlaylistSongByUserID)
+
+	// Kupon ve Premium Üyelik Rotaları
+	userAPI.Get("/coupon", handlers.GetUserCoupons)
+	userAPI.Post("/premium/start", handlers.StartPremiumPurchase)
+	userAPI.Post("/premium", handlers.PurchasePremium)
 
 	// Admin API'leri için rotalar
 	adminAPI := app.Group("/admin", middleware.AdminRequired)
@@ -78,10 +90,14 @@ func main() {
 	adminAPI.Put("/user/:userID", handlers.UpdateUserByID)
 	adminAPI.Delete("/user/:userID", handlers.DeleteUserByID)
 
-	// TASK 9: Yeni Admin Rotaları
+	// Yeni Admin Rotaları
 	adminAPI.Post("/song", handlers.AdminCreateSong)
 	adminAPI.Delete("/song/:songID", handlers.AdminDeleteSong)
 	adminAPI.Put("/song/:songID", handlers.AdminUpdateSong)
+
+	// Kupon Admin Rotaları
+	adminAPI.Post("/coupon", handlers.CreateCoupon)
+	adminAPI.Post("/coupon/assign", handlers.AssignCoupon)
 
 	log.Fatal(app.Listen(":3000"))
 }
