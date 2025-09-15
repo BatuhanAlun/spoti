@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -12,10 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
 )
-
-// DB ve Store global değişkenleri main.go'dan aktarılacak
-// var DB *pgx.Conn
-// var Store *session.Store
 
 // Race condition'ları önlemek için global mutex
 var mu sync.Mutex
@@ -145,6 +142,7 @@ func StartPremiumPurchase(c *fiber.Ctx) error {
 	sess.Set("purchaseExpirationTime", purchaseExpirationTime)
 
 	if err := sess.Save(); err != nil {
+		fmt.Println(err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Session kaydedilemedi."})
 	}
 
@@ -175,6 +173,20 @@ func PurchasePremium(c *fiber.Ctx) error {
 	userID := sess.Get("userID")
 	if userID == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Yetkilendirme hatası: Kullanıcı ID'si session'da bulunamadı."})
+	}
+
+	// Kullanıcının mevcut hesap türünü kontrol et
+	var currentUser models.User
+	err = DB.QueryRow(c.Context(), "SELECT hesap_turu FROM t_users WHERE id = $1", userID).Scan(&currentUser.HesapTuru)
+	if err == pgx.ErrNoRows {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Kullanıcı bulunamadı."})
+	}
+	if err != nil {
+		log.Println("Hesap türü sorgulama hatası:", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "İşlem sırasında bir hata oluştu."})
+	}
+	if currentUser.HesapTuru == "Premium" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Kullanıcı zaten premium üyedir."})
 	}
 
 	// Satın alma oturumu zaman aşımı kontrolü

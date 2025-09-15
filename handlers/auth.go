@@ -4,14 +4,13 @@ import (
 	"context"
 	"log"
 
-	"spoti/models" // Proje adınız 'spoti' ise, import yolu bu şekilde olmalı.
+	"spoti/models"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v4"
 	"golang.org/x/crypto/bcrypt"
 )
-
-// Global DB ve Store değişkenleri main.go dosyasında atanacaktır.
 
 // RegisterUser, yeni bir kullanıcı kaydı oluşturur.
 func RegisterUser(c *fiber.Ctx) error {
@@ -20,7 +19,18 @@ func RegisterUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Geçersiz istek gövdesi."})
 	}
 
-	// Şifreyi hash'le
+	var userRoleID uuid.UUID
+	err := DB.QueryRow(context.Background(), "SELECT id FROM t_roles WHERE name = 'user'").Scan(&userRoleID)
+	if err == pgx.ErrNoRows {
+
+		log.Println("Veritabanında 'user' rolü bulunamadı.")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "'user' rolü veritabanında bulunamadı. Lütfen yöneticiyle iletişime geçin."})
+	}
+	if err != nil {
+		log.Printf("'user' rolü sorgulama hatası: %v\n", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Rol ataması sırasında bir hata oluştu."})
+	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Printf("Şifre hashleme hatası: %v\n", err)
@@ -30,9 +40,10 @@ func RegisterUser(c *fiber.Ctx) error {
 	user.ID = uuid.New()
 	user.HesapTuru = "Free"
 	user.Cash = 100.00
+	user.RoleID = userRoleID
 
-	query := `INSERT INTO t_users (id, username, email, password, hesap_turu, cash) VALUES ($1, $2, $3, $4, $5, $6)`
-	_, err = DB.Exec(context.Background(), query, user.ID, user.Username, user.Email, user.Password, user.HesapTuru, user.Cash)
+	query := `INSERT INTO t_users (id, username, email, password, hesap_turu, cash, role_id) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	_, err = DB.Exec(context.Background(), query, user.ID, user.Username, user.Email, user.Password, user.HesapTuru, user.Cash, user.RoleID)
 	if err != nil {
 		log.Printf("Kullanıcı kaydı oluşturma hatası: %v\n", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Kullanıcı kaydı yapılamadı."})

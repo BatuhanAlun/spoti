@@ -11,10 +11,6 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-// Global değişkenler main.go'dan atanacaktır.
-//var DB *pgx.Conn
-//var Store *session.Store
-
 // CreatePlaylist, kullanıcının yeni bir çalma listesi oluşturmasını sağlar.
 func CreatePlaylist(c *fiber.Ctx) error {
 	// Middleware'dan userID'yi al.

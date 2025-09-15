@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/gob"
 	"log"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/session"
@@ -22,6 +23,7 @@ func init() {
 	// Gob paketine uuid.UUID tipini kaydet.
 	// Bu, Fiber session modülünün UUID tipindeki verileri doğru şekilde saklamasını sağlar.
 	gob.Register(uuid.UUID{})
+	gob.Register(time.Time{})
 }
 
 func main() {

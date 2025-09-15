@@ -11,7 +11,6 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-// DB ve Store global değişkenleri main.go'dan aktarılacak
 var DB *pgx.Conn
 var Store *session.Store
 
