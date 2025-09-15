@@ -26,14 +26,19 @@ func init() {
 
 func main() {
 	// Redis için yeni bir Store oluştur
-	redisStore := redis.New()
+
+	redisStore := redis.New(redis.Config{
+		Host: "redis",
+		Port: 6379,
+	})
+
 	store = session.New(session.Config{
 		Storage: redisStore,
 	})
 
 	// Veritabanı bağlantısı
 	var err error
-	connStr := "user=postgres password=postgres dbname=spoti host=localhost sslmode=disable"
+	connStr := "user=postgres password=postgres dbname=spoti host=db sslmode=disable"
 	db, err = pgx.Connect(context.Background(), connStr)
 	if err != nil {
 		log.Fatalf("Veritabanına bağlanılamadı: %v\n", err)
@@ -53,14 +58,16 @@ func main() {
 	middleware.Store = store
 	middleware.DB = db
 
+	api := app.Group("/api")
+
 	// Kimlik Doğrulama (Authentication) rotaları
-	app.Post("/user/register", handlers.RegisterUser)
-	app.Post("/user/login", handlers.LoginUser)
-	app.Post("/user/logout", handlers.LogoutUser)
+	api.Post("/user/register", handlers.RegisterUser)
+	api.Post("/user/login", handlers.LoginUser)
+	api.Post("/user/logout", handlers.LogoutUser)
 
 	// --- API Route'ları ---
 	// User API'leri için rotalar
-	userAPI := app.Group("/user", middleware.AuthRequired)
+	userAPI := api.Group("/user", middleware.AuthRequired)
 	userAPI.Get("/", handlers.GetUser)
 	userAPI.Put("/", handlers.UpdateUser)
 	userAPI.Delete("/", handlers.DeleteUser)
@@ -84,7 +91,7 @@ func main() {
 	userAPI.Post("/premium", handlers.PurchasePremium)
 
 	// Admin API'leri için rotalar
-	adminAPI := app.Group("/admin", middleware.AdminRequired)
+	adminAPI := api.Group("/admin", middleware.AdminRequired)
 	adminAPI.Get("/user", handlers.GetAllUsers)
 	adminAPI.Get("/user/:userID", handlers.GetUserByID)
 	adminAPI.Put("/user/:userID", handlers.UpdateUserByID)
